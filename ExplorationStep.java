@@ -190,7 +190,6 @@ public class ExplorationStep extends RecursiveAction {
 		long endTime = System.currentTimeMillis();
 		System.out.println("exectime: " + (endTime-startTime) + " ms nbClosed: " + nbClosed + " numCandidates: " + nbCandidates + " nbNotClosedPruned: " + nbNotClosedPruned);
 		
-		
 	}
 	
 	private static void printMan(Options options) {

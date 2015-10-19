@@ -114,7 +114,7 @@ public class Transaction {
 		} else {
 			start = this.consumedFirstPos[pos - 1] + 1;
 		}
-		for (int i = start; i < this.consumedLastStablePos[pos]; i++) {
+		for (int i = start; i < this.consumedFirstPos[pos]; i++) {
 			ext.add(this.itemSeq[i]);
 		}
 		return ext;
@@ -128,7 +128,7 @@ public class Transaction {
 		} else {
 			start = this.consumedFirstPos[pos - 1] + 1;
 		}
-		for (int i = start; i < this.consumedLastStablePos[pos]; i++) {
+		for (int i = start; i < this.consumedFirstPos[pos]; i++) {
 			bs.set(this.itemSeq[i]);
 		}
 	}
