@@ -272,6 +272,32 @@ public class Transaction {
 				+ ", consumedLastStablePos=" + Arrays.toString(consumedLastStablePos) + ", realLength=" + realLength
 				+ "]";
 	}
+	
+	// TODO
+	public boolean match(int[] sequence) {
+		for (int i = sequence.length - 1; i < this.itemSeq.length; i++) {
+			if (this.itemSeq[i] == sequence[sequence.length - 1]) {
+				if (match(sequence, sequence.length - 2, i - 1)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public boolean match(int[] sequence, int sequenceIndex, int transactionIndex) {
+		if (sequenceIndex == -1) {
+			return true;
+		}
+		for (int i = transactionIndex; i >= 0; i--) {
+			if (this.itemSeq[i] == sequence[sequenceIndex]) {
+				if (match(sequence, sequenceIndex - 1, i - 1)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 
 	public static void main(String[] args) {
 		int[] seq = new int[] { 1, 2, 2, 2, 2, 2, 2, 3, 3, 2 };

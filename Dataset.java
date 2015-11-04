@@ -180,4 +180,17 @@ public class Dataset {
 		return "Dataset [transactions=" + Arrays.toString(transactions) + ", support=" + support + "]";
 	}
 
+	// CHANGE
+	
+	public int getSupport(int[] sequence) {
+		int support = 0;
+		for (int i = 0; i < this.transactions.length; i++) {
+			if (this.transactions[i].match(sequence)) {
+				support++;
+			}
+		}
+		return support;
+	}
+	
+	
 }

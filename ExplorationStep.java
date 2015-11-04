@@ -21,10 +21,10 @@ import gnu.trove.iterator.TIntIterator;
 import gnu.trove.set.TIntSet;
 
 public class ExplorationStep extends RecursiveAction {
-	private int[] search = new int[] { 14, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 3 };
 	private static final boolean USE_FORWARD_DIRECT_CLOSURE = false;
 	private final int freqThreshold;
 	private Dataset dataset;
+	private static Dataset dNegDataset;
 	private final int[] currentSequence;
 	private final ExplorationStep parent;
 	private static int nbClosed = 0;
@@ -34,6 +34,7 @@ public class ExplorationStep extends RecursiveAction {
 	private static int nbNotClosedNotPruned = 0;
 	private static int nbDirectForwardClosures = 0;
 	private static boolean debugMode = false;
+	private static boolean contrastPruning = false;
 
 	public ExplorationStep(int freqThreshold, Dataset dataset, ExplorationStep parent) {
 		this(freqThreshold, dataset, new int[] {}, parent);
@@ -53,37 +54,14 @@ public class ExplorationStep extends RecursiveAction {
 		this.freqThreshold = freqThreshold;
 		this.dataset = dataset;
 		this.parent = parent;
-		int[] closure = null;
-		if (USE_FORWARD_DIRECT_CLOSURE) {
-			closure = dataset.forwardContinuousClose();
-		}
-		// System.out.println(Arrays.toString(closure));
-		int closureLength = 0;
-		if (closure != null) {
-			for (closureLength = 0; closureLength < closure.length; closureLength++) {
-				if (closure[closureLength] == -1) {
-					break;
-				}
-			}
-		}
-		if (closureLength != 0) {
-			nbDirectForwardClosures++;
-		}
-		// System.out.println("closure length " + closureLength);
-		if (closureLength > 0) {
-			this.currentSequence = Arrays.copyOf(currentSequence, currentSequence.length + closureLength);
-			for (int i = 0; i < closureLength; i++) {
-				this.currentSequence[currentSequence.length + i] = closure[i];
-			}
-		} else {
-			this.currentSequence = currentSequence;
-		}
+    this.currentSequence = currentSequence;
+		
 	}
 
 	public void compute() {
 		nbCandidates++;
 		BooleanHolder isForwardClosed = new BooleanHolder(true);
-		TIntSet expansions = this.dataset.computeExpansions(freqThreshold, isForwardClosed);
+		TIntSet expansions = this.dataset.computeExpansions(freqThreshold, isForwardClosed); // items that appear frequently in the forward space
 		// System.out.println(this.dataset + " expansions : " + expansions);
 		if (isForwardClosed.value) {
 			if (!this.dataset.hasBackExtension(this.currentSequence.length)) {
@@ -115,7 +93,15 @@ public class ExplorationStep extends RecursiveAction {
         
 				ExplorationStep nextStep = new ExplorationStep(this.freqThreshold, nextDataset, expandedSeq, this);
 				actions.add(nextStep);
-			} else {
+			} 
+			else if (contrastPruning) {
+				if (this.currentSequence.length > 0) {
+          if (dNegDataset.getSupport(this.currentSequence) > 0) {
+  // 					do nothing;
+          }
+				}
+			}
+			else {
 				nbNotClosedPruned++;
 			}
 		}
@@ -138,6 +124,7 @@ public class ExplorationStep extends RecursiveAction {
 		CommandLineParser parser = new PosixParser();
 		
 		options.addOption("debug", false, "Debug mode. One thread is launched. All the candidate patterns are output");
+		options.addOption("contrast", true, "Contrast pruning must be performed. The value is the path to Dneg file");
 
 		try {
 			CommandLine cmd = parser.parse(options, args);
@@ -157,10 +144,13 @@ public class ExplorationStep extends RecursiveAction {
 	
 	private static void standalone(CommandLine cmd) throws IOException {
 
+
     if (cmd.hasOption("debug")) {
       debugMode = true;
     }
+ 
     
+
 		List<Transaction> transactions = new ArrayList<Transaction>();
 		BufferedReader br = new BufferedReader(new FileReader(cmd.getArgs()[0]));
 		String line;
@@ -175,11 +165,38 @@ public class ExplorationStep extends RecursiveAction {
 			}
 		}
 		br.close();
-		// TODO remove unfrequent items, sort transactions from shortest to
-		// longest
 		Transaction[] transArray = new Transaction[transactions.size()];
 		transactions.toArray(transArray);
 		Dataset d = new Dataset(transArray);
+		
+		// initialise Dneg dataset
+    if (cmd.hasOption("contrast")) {
+    	contrastPruning = true;
+			String pathToDneg = cmd.getOptionValue("contrast");
+      transactions = new ArrayList<Transaction>();
+      br = new BufferedReader(new FileReader(pathToDneg));
+      while ((line = br.readLine()) != null) {
+        if (!line.isEmpty()) {
+          String[] sp = line.split("\\s+");
+          int[] trans = new int[sp.length];
+          for (int i = 0; i < sp.length; i++) {
+            trans[i] = Integer.parseInt(sp[i]);
+          }
+          transactions.add(new Transaction(trans));
+        }
+      }
+      br.close();
+      transArray = new Transaction[transactions.size()];
+      transactions.toArray(transArray);
+      dNegDataset = new Dataset(transArray);
+		}
+    
+//    int[] trySeq = {20, 18, 1};
+//    int sup = dNegDataset.getSupport(trySeq);
+//    System.out.println("support is " + sup);
+//    System.exit(0);
+
+		
 		long startTime = System.currentTimeMillis();
 		ExplorationStep es = new ExplorationStep(Integer.parseInt(cmd.getArgs()[1]), d, null);
 		int threadNum = debugMode ? 1 : 8;
